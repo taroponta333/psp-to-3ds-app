@@ -39,9 +39,9 @@ int main() {
 
     // 2. ネットワーク初期化
     pspDebugScreenPrintf("[2/5] Initializing PSP Network...\n");
-    if (sceNetInit() < 0) panic("sceNetInit failed");
+    if (sceNetInit(128 * 1024, 42, 4096, 42, 4096) < 0) panic("sceNetInit failed");
     if (sceNetAdhocInit() < 0) panic("sceNetAdhocInit failed");
-    if (sceNetAdhocmatchingInit(0x20000) < 0) panic("sceNetAdhocmatchingInit failed");
+    if (sceNetAdhocMatchingInit(0x20000) < 0) panic("sceNetAdhocMatchingInit failed");
 
     // 3. PDPソケットを作成
     int pdp_id = sceNetAdhocPdpCreate(NULL, PORT_NUMBER, 0x2000, 0);
