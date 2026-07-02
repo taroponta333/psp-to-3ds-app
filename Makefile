@@ -1,3 +1,6 @@
+# コンパイラに言われた通り、自動でパスを見つける呪文を一番上に追加！
+PSPSDK := $(shell psp-config --pspsdk-path)
+
 TARGET = psp_receiver
 OBJS = main.o
 
@@ -10,5 +13,5 @@ ASFLAGS = $(CFLAGS)
 
 LIBS = -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet
 
-# 最後の1行を、迷子にならないように絶対パスに書き換える！
-include /usr/local/pspdev/psp/sdk/lib/build.mak
+# 元の環境変数を使った書き方に戻す（これでbuild.makの内部も完璧に連動します）
+include $(PSPSDK)/lib/build.mak
