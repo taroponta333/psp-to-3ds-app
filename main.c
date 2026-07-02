@@ -22,6 +22,10 @@ void panic(const char *msg) {
     pspDebugScreenPrintf("Please restart the homebrew.\n");
     while(1) sceKernelDelayThread(100 * 1000);
 }
+// マッチング用のコールバック関数（中身は空でOK）
+void matching_cb(int id, int event, unsigned char *peer, int optlen, void *optdata) {
+    // 通信イベントが発生したときにここが呼ばれます
+}
 
 int main() {
     pspDebugScreenInit();
@@ -43,22 +47,28 @@ int main() {
     int pdp_id = sceNetAdhocPdpCreate(NULL, PORT_NUMBER, 0x2000, 0);
     if (pdp_id < 0) panic("Failed to create PDP socket");
 
-    // 4. マッチングシステムを開始 (大文字の M に修正)
+   // 4. マッチングシステムを開始
     pspDebugScreenPrintf("[3/5] Starting Matching System...\n");
+    
+    // 引数を仕様通りの「9個」に修正
     int matching_id = sceNetAdhocMatchingCreate(
-        1,                           
-        10,                          
-        PORT_NUMBER,                 
-        sizeof(g_product_id), 
-        (void*)g_product_id, 
-        NULL, NULL, NULL, NULL, NULL 
+        3,              // mode (P2P/インフラモード)
+        2,              // maxpeers (最大接続台数: 2)
+        PORT_NUMBER,    // port
+        1024,           // bufsize
+        200 * 1000,     // hellodelay
+        500 * 1000,     // pingdelay
+        3,              // initcount
+        200 * 1000,     // msgdelay
+        matching_cb     // callback (上で作った関数を指定)
     );
     if (matching_id < 0) panic("Failed to create matching context");
 
-    if (sceNetAdhocMatchingStart(matching_id) < 0) panic("Failed to start matching");
+    // 引数を仕様通りの「7個」に修正（スレッド優先度やスタックサイズを指定）
+    if (sceNetAdhocMatchingStart(matching_id, 0x10, 0x4000, 0x10, 0x4000, 0, NULL) < 0) {
+        panic("Failed to start matching");
+    }
     
-    pspDebugScreenPrintf("\n[*] Searching for 3DS (Ad-Hoc 11b Mode)...\n");
-
     // 5. 接続確立（ダミー処理）
     unsigned char peer_mac[6] = {0}; 
     pspDebugScreenPrintf("\n[4/5] Connected to 3DS successfully!\n");
