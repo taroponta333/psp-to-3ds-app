@@ -1,17 +1,15 @@
 TARGET = psp_receiver
 OBJS = main.o
 
-# PSPのネットワーク機能（アドホック等）を使うためのライブラリをリンク
-LIBS = -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet
+# PSPの実機で動かす「EBOOT.PBP」を作るための魔法の1行を追加！
+BUILD_PRX = 1
+PSP_EBOOT_TITLE = Turbo Receiver
 
 CFLAGS = -O2 -G0 -Wall
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
-# EBOOT.PBP（PSPで動く最終形）を自動生成する設定
-BUILD_PRX = 1
-PSP_EBOOT_TITLE = PSP Wireless Receiver
-# PSP_EBOOT_ICON = icon0.png  # もしアイコン画像があればコメント解除
+# PSPのネットワーク機能を使うためのライブラリ
+LIBS = -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet
 
-PSPSDK=$(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
