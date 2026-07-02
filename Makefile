@@ -1,5 +1,5 @@
 TARGET = psp_receiver
-OBJS = src/main.c
+OBJS = main.c
 
 # PSPのネットワーク機能（アドホック等）を使うためのライブラリをリンク
 LIBS = -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet
