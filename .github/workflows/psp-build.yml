@@ -1,0 +1,33 @@
+name: Build PSP EBOOT
+
+# トリガー：コードが新しく更新（push）されたら全自動でスタート
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-psp:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. GitHub上にあるあなたのコードを読み込む
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 2. PSPの開発環境（PSPSDK）が入ったコンテナを起動してビルドする
+    - name: Compile with PSPSDK
+      uses: addnab/docker-run-action@v3
+      with:
+        image: pspdev/pspdev:latest
+        options: -v ${{ github.workspace }}:/work
+        run: |
+          cd /work
+          make clean
+          make
+
+    # 3. 完成した「EBOOT.PBP」をGitHub上に保存（Artifacts）
+    - name: Upload EBOOT
+      uses: actions/upload-artifact@v4
+      with:
+        name: psp-receiver-eboot
+        path: EBOOT.PBP
