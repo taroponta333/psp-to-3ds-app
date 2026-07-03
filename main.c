@@ -72,8 +72,8 @@ int main(int argc, char *argv[]) {
         // 押されているボタンを判定して表示
         if (pad.Buttons & PSP_CTRL_CIRCLE)   pspDebugScreenPrintf("[ O ] ");
         if (pad.Buttons & PSP_CTRL_CROSS)    pspDebugScreenPrintf("[ X ] ");
-        if (pad.Buttons & PSP_CTRL_TRIANGLE) pspDebugScreenPrintf("[ /\ ] ");
-        if (pad.Buttons & PSP_CTRL_SQUARE)   pspDebugScreenPrintf("[ []  ] ");
+        if (pad.Buttons & PSP_CTRL_TRIANGLE) pspDebugScreenPrintf("[ TRIANGLE ] ");
+        if (pad.Buttons & PSP_CTRL_SQUARE)   pspDebugScreenPrintf("[ SQUARE ] ");
         
         if (pad.Buttons & PSP_CTRL_UP)       pspDebugScreenPrintf("[ UP ] ");
         if (pad.Buttons & PSP_CTRL_DOWN)     pspDebugScreenPrintf("[ DOWN ] ");
