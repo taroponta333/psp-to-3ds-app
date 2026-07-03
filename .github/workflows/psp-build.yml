@@ -26,7 +26,7 @@ jobs:
           make
 
     # 3. 完成した「EBOOT.PBP」をGitHub上に保存（Artifacts）
-    - - name: Upload Artifact
+    -  name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: psp-button-logger-plugin
