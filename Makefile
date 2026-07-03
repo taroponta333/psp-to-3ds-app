@@ -1,17 +1,20 @@
 PSPSDK := $(shell psp-config --pspsdk-path)
 
-TARGET = psp_receiver
+# 出力されるプラグインの名前（ボタンロガー.prx）
+TARGET = btn_logger
 OBJS = main.o
 
-# PRXビルドの時は、これを書かないとEBOOT.PBPの自動生成までたどり着きません！
+# プラグイン（PRX）としてビルドし、最終ターゲットに指定する
 BUILD_PRX = 1
-EXTRA_TARGETS = EBOOT.PBP
-PSP_EBOOT_TITLE = Turbo Receiver
+EXTRA_TARGETS = $(TARGET).prx
+
+# カーネルモード（FWレベル）で動作させるための特権フラグ
+USE_KERNEL_LIBS = 1
 
 CFLAGS = -O2 -G0 -Wall
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
-LIBS = -lpspnet_adhocmatching -lpspnet_adhoc -lpspnet
+LIBS = 
 
 include $(PSPSDK)/lib/build.mak
