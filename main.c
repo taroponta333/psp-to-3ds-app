@@ -1,120 +1,69 @@
 #include <pspkernel.h>
 #include <pspdebug.h>
-#include <pspsdk.h>
-#include <pspnet.h>
-#include <pspnet_adhoc.h>
-#include <pspnet_adhocmatching.h>
-#include <stdio.h>
-#include <string.h>
+#include <pspctrl.h> // ボタン入力を扱うためのライブラリ
 
-// PSPのモジュール設定
-PSP_MODULE_INFO("PSP_Adhoc_Receiver", 0, 1, 1);
-PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
+// PSPの基本設定（おまじない）
+PSP_MODULE_INFO("HelloPSP", 0, 1, 1);
+PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
-#define pspDebugScreenPrintf printf
-#define BUFFER_SIZE 4096
-#define PORT_NUMBER 5000 
-
-const char g_product_id[] = "3DS2PSP"; 
-
-void panic(const char *msg) {
-    pspDebugScreenPrintf("\n[ERROR] %s\n", msg);
-    pspDebugScreenPrintf("Please restart the homebrew.\n");
-    while(1) sceKernelDelayThread(100 * 1000);
-}
-// マッチング用のコールバック関数（中身は空でOK）
-void matching_cb(int id, int event, unsigned char *peer, int optlen, void *optdata) {
-    // 通信イベントが発生したときにここが呼ばれます
-}
-
-int main() {
+int main(int argc, char *argv[]) {
+    // 1. 画面デバッグ表示の初期化
     pspDebugScreenInit();
+    
+    // 2. ボタン入力の設定（標準的な読み取りモードに設定）
+    sceCtrlSetSamplingCycle(0);
+    sceCtrlSetSamplingMode(PSP_CTRL_MODE_DIGITAL);
+
+    // 画面の文字色を緑（ハッカーっぽく）にして、タイトルを表示
+    pspDebugScreenSetTextColor(0xFF00FF00); 
     pspDebugScreenPrintf("===================================\n");
-    pspDebugScreenPrintf("   PSP Ad-Hoc Save/App Receiver    \n");
+    pspDebugScreenPrintf("      Hello PSP by minax333       \n");
     pspDebugScreenPrintf("===================================\n\n");
 
-    // 1. 保存先フォルダの準備
-    pspDebugScreenPrintf("[1/5] Preparing storage directory...\n");
-    sceIoMkdir("ms0:/PSP/GAME/DOWNLOAD", 0777); 
+    // 文字色を白に戻す
+    pspDebugScreenSetTextColor(0xFFFFFFFF);
+    pspDebugScreenPrintf("Press any button to test entry...\n");
+    pspDebugScreenPrintf("Press HOME button to exit app.\n\n");
 
-    // 2. ネットワーク初期化
-    pspDebugScreenPrintf("[2/5] Initializing PSP Network...\n");
-    if (sceNetInit(128 * 1024, 42, 4096, 42, 4096) < 0) panic("sceNetInit failed");
-    if (sceNetAdhocInit() < 0) panic("sceNetAdhocInit failed");
-    if (sceNetAdhocMatchingInit(0x20000) < 0) panic("sceNetAdhocMatchingInit failed");
+    // 入力データを格納する構造体
+    SceCtrlData pad;
 
-    // 3. PDPソケットを作成
-    int pdp_id = sceNetAdhocPdpCreate(NULL, PORT_NUMBER, 0x2000, 0);
-    if (pdp_id < 0) panic("Failed to create PDP socket");
-
-   // 4. マッチングシステムを開始
-    pspDebugScreenPrintf("[3/5] Starting Matching System...\n");
-    
-    // 引数を仕様通りの「9個」に修正
-    int matching_id = sceNetAdhocMatchingCreate(
-        3,              // mode (P2P/インフラモード)
-        2,              // maxpeers (最大接続台数: 2)
-        PORT_NUMBER,    // port
-        1024,           // bufsize
-        200 * 1000,     // hellodelay
-        500 * 1000,     // pingdelay
-        3,              // initcount
-        200 * 1000,     // msgdelay
-        matching_cb     // callback (上で作った関数を指定)
-    );
-    if (matching_id < 0) panic("Failed to create matching context");
-
-    // 引数を仕様通りの「7個」に修正（スレッド優先度やスタックサイズを指定）
-    if (sceNetAdhocMatchingStart(matching_id, 0x10, 0x4000, 0x10, 0x4000, 0, NULL) < 0) {
-        panic("Failed to start matching");
-    }
-    
-    // 5. 接続確立（ダミー処理）
-    unsigned char peer_mac[6] = {0}; 
-    pspDebugScreenPrintf("\n[4/5] Connected to 3DS successfully!\n");
-
-    // 6. ファイルの受信と書き込みループ
-    char *save_path = "ms0:/PSP/GAME/DOWNLOAD/EBOOT.PBP";
-    FILE *fp = fopen(save_path, "wb");
-    if (fp == NULL) panic("Cannot open file to write.");
-
-    pspDebugScreenPrintf("[5/5] Receiving data...\n");
-
-    char buffer[BUFFER_SIZE];
-    int total_bytes = 0;
-    unsigned short current_port = PORT_NUMBER;
-
+    // メインループ（ボタンの状態を監視し続ける）
     while (1) {
-        unsigned int rlen = BUFFER_SIZE;
+        // 現在のボタンの状態を読み取る
+        sceCtrlReadBufferPositive(&pad, 1);
+
+        // 画面の4行目、0列目にカーソルを固定して上書き描画（画面のチラつき防止）
+        pspDebugScreenSetXY(0, 6);
+        pspDebugScreenPrintf("Current Button State: ");
+
+        // 押されているボタンを判定して表示
+        if (pad.Buttons & PSP_CTRL_CIRCLE)   pspDebugScreenPrintf("[ CIRCLE ] ");
+        if (pad.Buttons & PSP_CTRL_CROSS)    pspDebugScreenPrintf("[ CROSS ] ");
+        if (pad.Buttons & PSP_CTRL_TRIANGLE) pspDebugScreenPrintf("[ TRIANGLE ] ");
+        if (pad.Buttons & PSP_CTRL_SQUARE)   pspDebugScreenPrintf("[ SQUARE ] ");
         
-        // ⭕️ 引数の NULL を 0 (タイムアウトなし) に修正
-        int res = sceNetAdhocPdpRecv(pdp_id, peer_mac, &current_port, buffer, &rlen, 0, 0);
+        if (pad.Buttons & PSP_CTRL_UP)       pspDebugScreenPrintf("[ UP ] ");
+        if (pad.Buttons & PSP_CTRL_DOWN)     pspDebugScreenPrintf("[ DOWN ] ");
+        if (pad.Buttons & PSP_CTRL_LEFT)     pspDebugScreenPrintf("[ LEFT ] ");
+        if (pad.Buttons & PSP_CTRL_RIGHT)    pspDebugScreenPrintf("[ RIGHT ] ");
         
-        if (res < 0) {
-            break; 
+        if (pad.Buttons & PSP_CTRL_LTRIGGER) pspDebugScreenPrintf("[ L ] ");
+        if (pad.Buttons & PSP_CTRL_RTRIGGER) pspDebugScreenPrintf("[ R ] ");
+        
+        if (pad.Buttons & PSP_CTRL_START)    pspDebugScreenPrintf("[ START ] ");
+        if (pad.Buttons & PSP_CTRL_SELECT)   pspDebugScreenPrintf("[ SELECT ] ");
+
+        // 何も押されていない時は空白で埋める
+        if (pad.Buttons == 0) {
+            pspDebugScreenPrintf("[ NONE ]                                ");
+        } else {
+            // 前の文字が残らないようにスペースでクリア
+            pspDebugScreenPrintf("        ");
         }
 
-        if (rlen > 0) {
-            fwrite(buffer, 1, rlen, fp);
-            total_bytes += rlen;
-            pspDebugScreenPrintf("\r    -> Progress: %d KB received", total_bytes / 1024);
-        }
-
-        sceKernelDelayThread(10 * 1000); 
-    }
-
-    // 7. クリーンアップ (大文字の M に修正)
-    fclose(fp);
-    sceNetAdhocMatchingStop(matching_id);
-    sceNetAdhocMatchingDelete(matching_id);
-    sceNetAdhocPdpDelete(pdp_id, 0);
-    sceNetAdhocTerm();
-    sceNetTerm();
-
-    pspDebugScreenPrintf("\n\nSUCCESS! Saved to:\n%s\n", save_path);
-    
-    while(1) {
-        sceKernelDelayThread(100 * 1000);
+        // CPUを休ませるためのほんの少しのウェイト（フリーズ防止）
+        sceKernelDelayThread(10000); 
     }
 
     return 0;
