@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
         
         if (pad.Buttons & PSP_CTRL_UP)       pspDebugScreenPrintf("[ UP ] ");
         if (pad.Buttons & PSP_CTRL_DOWN)     pspDebugScreenPrintf("[ DOWN ] ");
-        if (pad.Buttons & PSP_CTRL)     pspDebugScreenPrintf("[ LEFT ] ");
+        if (pad.Buttons & PSP_CTRL_LEFT)     pspDebugScreenPrintf("[ LEFT ] ");
         if (pad.Buttons & PSP_CTRL_RIGHT)    pspDebugScreenPrintf("[ RIGHT ] ");
         
         if (pad.Buttons & PSP_CTRL_LTRIGGER) pspDebugScreenPrintf("[ L ] ");
