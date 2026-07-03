@@ -1,22 +1,14 @@
 #include <pspkernel.h>
 #include <pspctrl.h>
-
-// カーネルモード用のヘッダー（文字列操作や基本的な出力用）
 #include <string.h>
 
 PSP_MODULE_INFO("ButtonLogger", 0x1000, 1, 1);
 
-// 【修正！】カーネルモード専用のファイル書き込み関数
 void write_log(const char *text) {
-    // 追記モードの代わりに、オープン(O_WRONLY)、作成(O_CREAT)、追記(O_APPEND)のフラグを使う
-    // パーミッションは 0777 を指定
     int fd = sceIoOpen("ms0:/btn_log.txt", PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
     if (fd >= 0) {
-        // 文字列の長さを計算して書き込む
         sceIoWrite(fd, text, strlen(text));
-        // 改行コード（\n）を書き込む
         sceIoWrite(fd, "\n", 1);
-        // ファイルを閉じる
         sceIoClose(fd);
     }
 }
@@ -27,11 +19,13 @@ int LoggerThread(SceSize args, void *argp) {
 
     write_log("--- Logger Plugin Started ---");
 
-    sceCtrlSetSamplingCycle(0);
-    sceCtrlSetSamplingMode(PSP_CTRL_MODE_DIGITAL);
+    // プラグインでは、他のアプリの設定を壊さないように
+    // サイクル設定（sceCtrlSetSamplingCycle）などはあえて行わないのが安全です
 
     while (1) {
-        sceCtrlReadBufferPositive(&pad, 1);
+        // 【修正！】Read から Peek に変更し、後ろの引数を「1」から「1」のままPeek仕様にする
+        // これで他のアプリの入力をブロック（横取り）しなくなります
+        sceCtrlPeekBufferPositive(&pad, 1);
 
         if (pad.Buttons != last_buttons) {
             if (pad.Buttons & PSP_CTRL_CIRCLE)   write_log("[CIRCLE] Pressed");
@@ -57,14 +51,16 @@ int LoggerThread(SceSize args, void *argp) {
             last_buttons = pad.Buttons;
         }
 
-        sceKernelDelayThread(10000);
+        // 【修正！】少しだけ休憩時間を増やして（0.05秒）、他のアプリにCPUを譲る
+        sceKernelDelayThread(50000);
     }
 
     return 0;
 }
 
 int module_start(SceSize args, void *argp) {
-    int thid = sceKernelCreateThread("logger_thread", LoggerThread, 0x11, 0xFA0, 0, NULL);
+    // スレッドの優先度（第3引数）を 0x11 から 0x18 くらいに少し下げて、ゲーム側の処理を優先させます
+    int thid = sceKernelCreateThread("logger_thread", LoggerThread, 0x18, 0xFA0, 0, NULL);
     if (thid >= 0) {
         sceKernelStartThread(thid, args, argp);
     }
