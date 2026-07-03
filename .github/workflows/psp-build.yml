@@ -26,8 +26,8 @@ jobs:
           make
 
     # 3. 完成した「EBOOT.PBP」をGitHub上に保存（Artifacts）
-    - name: Upload EBOOT
-      uses: actions/upload-artifact@v4
-      with:
-        name: psp-receiver-eboot
-        path: EBOOT.PBP
+    - - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psp-button-logger-plugin
+          path: btn_logger.prx  # ←生成されたプラグインファイルを回収するように変更！
