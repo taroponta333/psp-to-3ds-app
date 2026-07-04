@@ -15,16 +15,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 【最重要】GitHub公式の仕組みを使って、3DS開発環境をエラーなしで完璧に構築
+    # 2. 【ここを修正！】devkitPro公式の正しいアクション名に修正
     - name: Set up devkitPRO ARM (3DS)
-      uses: devkitpro/setup-devkitpro-action@v1
+      uses: devkitpro/setup-devkitpro@v1
 
     # 3. コンパイルを実行
     - name: Compile Homebrew
       run: |
         make
           
-    # 4. 出来上がった成果物（.3dsx）を保存してダウンロードできるようにする
+    # 4. 出来上がった成果物（.3dsx）を保存
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
