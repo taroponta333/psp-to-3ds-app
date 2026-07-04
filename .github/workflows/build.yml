@@ -10,21 +10,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 【ここを修正！】3DS開発用のライブラリ(libctru等)が最初から全部入っているコンテナを指定
-    container:
-      image: cyberic/devkitpro-3ds:latest
-
     steps:
-    # 1. あなたのコードを取得する
+    # 1. あなたのコード（main.c, Makefile）を取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 最初から3ds.hが入っているので、そのまま一発コンパイル！
+    # 2. devkitProの公式リポジトリ（APT）をUbuntuに直接登録する
+    - name: Add devkitPro repository
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y GnuPG wget
+        # devkitProの公開鍵を登録
+        sudo wget -O /usr/share/keyrings/devkitpro-keyring.gpg https://pkg.devkitpro.org/devkitpro-keyring.gpg
+        # リポジトリ一覧にdevkitProを追加
+        echo "deb [signed-by=/usr/share/keyrings/devkitpro-keyring.gpg] https://pkg.devkitpro.org/debian devkitpro main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+
+    # 3. 3DS開発に必要なツール（devkitARM）を直接インストールする
+    - name: Install devkitARM and libctru
+      run: |
+        sudo apt-get update
+        # 3ds用のコンパイラとライブラリ一式を直接叩き込む
+        sudo apt-get install -y devkitarm-rules 3ds-dev
+
+    # 4. コンパイルを実行
     - name: Compile Homebrew
       run: |
+        # 環境変数のパスを一時的に通してmakeを実行
+        export DEVKITPRO=/opt/devkitpro
+        export DEVKITARM=$DEVKITPRO/devkitARM
         make
           
-    # 3. 出来上がった成果物を保存
+    # 5. 出来上がった成果物（.3dsx）を保存
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
