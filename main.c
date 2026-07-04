@@ -1,73 +1,120 @@
-#include <pspkernel.h>
-#include <pspctrl.h>
+#include <3ds.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 
-PSP_MODULE_INFO("ButtonLogger", 0x1000, 1, 1);
+#define MAX_FILES 32
+#define PSP_PACKET_SIZE 1448
 
-void write_log(const char *text) {
-    int fd = sceIoOpen("ms0:/btn_log.txt", PSP_O_WRONLY | PSP_O_CREAT | PSP_O_APPEND, 0777);
-    if (fd >= 0) {
-        sceIoWrite(fd, text, strlen(text));
-        sceIoWrite(fd, "\n", 1);
-        sceIoClose(fd);
+char fileList[MAX_FILES][256];
+int fileCount = 0;
+int selectedIndex = 0;
+
+// sdmc:/3ds フォルダ内をスキャン
+void scanDirectory() {
+    DIR *dir;
+    struct dirent *ent;
+    fileCount = 0;
+
+    dir = opendir("sdmc:/3ds");
+    if (dir == NULL) {
+        printf("sdmc:/3ds directory not found.\n");
+        return;
+    }
+
+    while ((ent = readdir(dir)) != NULL && fileCount < MAX_FILES) {
+        if (ent->d_type == DT_REG) {
+            // .pbp または .prx ファイルのみをリストに追加
+            if (strstr(ent->d_name, ".pbp") || strstr(ent->d_name, ".prx")) {
+                strncpy(fileList[fileCount], ent->d_name, 256);
+                fileCount++;
+            }
+        }
+    }
+    closedir(dir);
+}
+
+// 画面描画
+void drawMenu() {
+    consoleClear();
+    printf("=== 3DS to PSP File Sender ===\n");
+    printf("Up/Down: Select  |  A: Send  |  START: Exit\n\n");
+
+    if (fileCount == 0) {
+        printf("No compatible files found (.pbp / .prx)\n");
+        printf("Please put files in sdmc:/3ds/\n");
+        return;
+    }
+
+    for (int i = 0; i < fileCount; i++) {
+        if (i == selectedIndex) {
+            printf("> [%s]\n", fileList[i]);
+        } else {
+            printf("  %s\n", fileList[i]);
+        }
     }
 }
 
-int LoggerThread(SceSize args, void *argp) {
-    SceCtrlData pad;
-    unsigned int last_buttons = 0;
+// 送信処理（擬似エミュレート）
+void sendFileToPSP(const char* fileName) {
+    char fullPath[512];
+    snprintf(fullPath, sizeof(fullPath), "sdmc:/3ds/%s", fileName);
+    
+    printf("\nOpening: %s\n", fileName);
+    
+    FILE *file = fopen(fullPath, "rb");
+    if (file == NULL) {
+        printf("Error: Could not open file.\n");
+        return;
+    }
 
-    write_log("--- Logger Plugin Started ---");
+    printf("Emulating RAW Socket packet transfer...\n");
+    // ここに実際のRAWソケット送信ロジックが入ります
+    svcSleepThread(2000000000ULL); // 2秒待機
+    
+    fclose(file);
+    printf("Transfer Complete successfully!\n");
+}
 
-    // プラグインでは、他のアプリの設定を壊さないように
-    // サイクル設定（sceCtrlSetSamplingCycle）などはあえて行わないのが安全です
+int main(int argc, char **argv) {
+    gfxInitDefault();
+    consoleInit(GFX_TOP, NULL);
 
-    while (1) {
-        // 【修正！】Read から Peek に変更し、後ろの引数を「1」から「1」のままPeek仕様にする
-        // これで他のアプリの入力をブロック（横取り）しなくなります
-        sceCtrlPeekBufferPositive(&pad, 1);
+    scanDirectory();
+    drawMenu();
 
-        if (pad.Buttons != last_buttons) {
-            if (pad.Buttons & PSP_CTRL_CIRCLE)   write_log("[CIRCLE] Pressed");
-            if (pad.Buttons & PSP_CTRL_CROSS)    write_log("[CROSS] Pressed");
-            if (pad.Buttons & PSP_CTRL_TRIANGLE) write_log("[TRIANGLE] Pressed");
-            if (pad.Buttons & PSP_CTRL_SQUARE)   write_log("[SQUARE] Pressed");
-            
-            if (pad.Buttons & PSP_CTRL_UP)       write_log("[UP] Pressed");
-            if (pad.Buttons & PSP_CTRL_DOWN)     write_log("[DOWN] Pressed");
-            if (pad.Buttons & PSP_CTRL_LEFT)     write_log("[LEFT] Pressed");
-            if (pad.Buttons & PSP_CTRL_RIGHT)    write_log("[RIGHT] Pressed");
-            
-            if (pad.Buttons & PSP_CTRL_LTRIGGER) write_log("[L] Pressed");
-            if (pad.Buttons & PSP_CTRL_RTRIGGER) write_log("[R] Pressed");
-            
-            if (pad.Buttons & PSP_CTRL_START)    write_log("[START] Pressed");
-            if (pad.Buttons & PSP_CTRL_SELECT)   write_log("[SELECT] Pressed");
+    while (aptMainLoop()) {
+        hidScanInput();
+        u32 kDown = hidKeysDown();
 
-            if (pad.Buttons == 0) {
-                write_log("[NONE]");
+        if (kDown & KEY_DOWN) {
+            if (selectedIndex < fileCount - 1) {
+                selectedIndex++;
+                drawMenu();
             }
-
-            last_buttons = pad.Buttons;
+        }
+        
+        if (kDown & KEY_UP) {
+            if (selectedIndex > 0) {
+                selectedIndex--;
+                drawMenu();
+            }
+        }
+        
+        if (kDown & KEY_A && fileCount > 0) {
+            sendFileToPSP(fileList[selectedIndex]);
+            svcSleepThread(3000000000ULL); // 3秒待機
+            drawMenu();
         }
 
-        // 【修正！】少しだけ休憩時間を増やして（0.05秒）、他のアプリにCPUを譲る
-        sceKernelDelayThread(50000);
+        if (kDown & KEY_START) break;
+
+        gfxFlushBuffers();
+        gfxSwapBuffers();
+        gspWaitForVBlank();
     }
 
-    return 0;
-}
-
-int module_start(SceSize args, void *argp) {
-    // スレッドの優先度（第3引数）を 0x11 から 0x18 くらいに少し下げて、ゲーム側の処理を優先させます
-    int thid = sceKernelCreateThread("logger_thread", LoggerThread, 0x18, 0xFA0, 0, NULL);
-    if (thid >= 0) {
-        sceKernelStartThread(thid, args, argp);
-    }
-    return 0;
-}
-
-int module_stop(void) {
-    write_log("--- Logger Plugin Stopped ---");
+    gfxExit();
     return 0;
 }
