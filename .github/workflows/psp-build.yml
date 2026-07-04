@@ -1,6 +1,5 @@
 name: 3DS Homebrew Build
 
-# どのタイミングで自動ビルドを動かすか（コードを保存したとき）
 on:
   push:
     branches: [ "main" ]
@@ -12,27 +11,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. GitHubのサーバーに君の書いたコードをコピーする
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. devkitpro公式の3DSビルド環境（コンテナ）を起動する
+    # 3DSのビルド環境コンテナを実行
+     King
     - name: Run build in devkitpro container
       uses: addnab/docker-run-action@v3
       with:
         image: devkitpro/devkitarm:latest
         options: -v ${{ github.workspace }}:/workspace
         run: |
+          # 【ここを追加！】3DS開発に必要なツールとライブラリ(libctruなど)を自動インストール
+          dkp-pacman -S --noconfirm 3ds-dev
+          
           cd /workspace
-          # ここでコンパイル命令を実行（Makefileがある前提）
+          # コンパイルを実行
           make
-
-    # 3. 出来上がった成果物（.3dsx や .cia）をGitHub上に保存してダウンロードできるようにする
+          
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
         name: 3ds-homebrew-file
-        # 出来上がったファイルの場所を指定（拡張子が .3dsx や .cia のものを全部集める）
         path: |
           *.3dsx
           *.cia
