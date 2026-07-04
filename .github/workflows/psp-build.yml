@@ -1,33 +1,38 @@
-name: Build PSP EBOOT
+name: 3DS Homebrew Build
 
-# トリガー：コードが新しく更新（push）されたら全自動でスタート
+# どのタイミングで自動ビルドを動かすか（コードを保存したとき）
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build-psp:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. GitHub上にあるあなたのコードを読み込む
+    # 1. GitHubのサーバーに君の書いたコードをコピーする
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. PSPの開発環境（PSPSDK）が入ったコンテナを起動してビルドする
-    - name: Compile with PSPSDK
+    # 2. devkitpro公式の3DSビルド環境（コンテナ）を起動する
+    - name: Run build in devkitpro container
       uses: addnab/docker-run-action@v3
       with:
-        image: pspdev/pspdev:latest
-        options: -v ${{ github.workspace }}:/work
+        image: devkitpro/devkitarm:latest
+        options: -v ${{ github.workspace }}:/workspace
         run: |
-          cd /work
-          make clean
+          cd /workspace
+          # ここでコンパイル命令を実行（Makefileがある前提）
           make
 
-    # 3. 完成した「btn_logger.prx」をGitHub上に保存（Artifacts）
-    - name: Upload Artifact
+    # 3. 出来上がった成果物（.3dsx や .cia）をGitHub上に保存してダウンロードできるようにする
+    - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
-        name: psp-button-logger-plugin
-        path: btn_logger.prx
+        name: 3ds-homebrew-file
+        # 出来上がったファイルの場所を指定（拡張子が .3dsx や .cia のものを全部集める）
+        path: |
+          *.3dsx
+          *.cia
