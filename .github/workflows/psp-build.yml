@@ -14,13 +14,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # 3DS開発用ツールが最初から全部入っている全部入りイメージ(3ds-dev)を使用
     - name: Run build in devkitpro container
       uses: addnab/docker-run-action@v3
       with:
-        image: devkitpro/devkitarm:latest
+        image: devkitpro/devkitarm:3ds-dev  # <-- ここを :3ds-dev に変更！
         options: -v ${{ github.workspace }}:/workspace
         run: |
-          dkp-pacman -S --noconfirm 3ds-dev
+          # サーバーからのダウンロードが不要になったので、この行は消すか無効化します
+          # dkp-pacman -S --noconfirm 3ds-dev
+          
           cd /workspace
           make
           
