@@ -11,22 +11,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # 1. あなたのコード（main.c や Makefile）を取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 3DS開発用ツールが最初から全部入っている全部入りイメージ(3ds-dev)を使用
-    - name: Run build in devkitpro container
-      uses: addnab/docker-run-action@v3
-      with:
-        image: devkitpro/devkitarm:3ds-dev  # <-- ここを :3ds-dev に変更！
-        options: -v ${{ github.workspace }}:/workspace
-        run: |
-          # サーバーからのダウンロードが不要になったので、この行は消すか無効化します
-          # dkp-pacman -S --noconfirm 3ds-dev
+    # 2. 【最重要】GitHub公式の仕組みを使って、3DS開発環境をエラーなしで完璧に構築
+    - name: Set up devkitPRO ARM (3DS)
+      uses: devkitpro/setup-devkitpro-action@v1
+
+    # 3. コンパイルを実行
+    - name: Compile Homebrew
+      run: |
+        make
           
-          cd /workspace
-          make
-          
+    # 4. 出来上がった成果物（.3dsx）を保存してダウンロードできるようにする
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
