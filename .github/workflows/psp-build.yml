@@ -14,19 +14,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 3DSのビルド環境コンテナを実行
-     King
     - name: Run build in devkitpro container
       uses: addnab/docker-run-action@v3
       with:
         image: devkitpro/devkitarm:latest
         options: -v ${{ github.workspace }}:/workspace
         run: |
-          # 【ここを追加！】3DS開発に必要なツールとライブラリ(libctruなど)を自動インストール
           dkp-pacman -S --noconfirm 3ds-dev
-          
           cd /workspace
-          # コンパイルを実行
           make
           
     - name: Upload compiled binary
