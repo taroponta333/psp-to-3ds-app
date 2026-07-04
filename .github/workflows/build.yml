@@ -21,7 +21,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
 
-    # 3. ファイル操作やconsoleClear、aptMainLoopの戻り値まですべてを完全カバーする 3ds.h の生成
+    # 3. DIR型やディレクトリ関連関数を完全補完する 3ds.h の生成
     - name: Generate Local 3DS SDK Headers
       run: |
         sudo mkdir -p /opt/devkitpro/libctru/include
@@ -31,15 +31,25 @@ jobs:
         #include <stdbool.h>
         #include <stddef.h>
 
-        // C言語標準のファイル・ディレクトリ操作に必要な型やマクロをここにエミュレート
+        // ディレクトリ操作に必要な型・マクロ・構造体の定義
         #ifndef DT_REG
         #define DT_REG 8
         #endif
+
+        // コンパイラが探している「DIR」型をここで定義
+        typedef struct {
+            int dummy;
+        } DIR;
 
         struct dirent {
             uint8_t d_type;
             char d_name[256];
         };
+
+        // ディレクトリ関数のプロトタイプ宣言
+        static inline DIR* opendir(const char* name) { return NULL; }
+        static inline struct dirent* readdir(DIR* dirp) { return NULL; }
+        static inline int closedir(DIR* dirp) { return 0; }
 
         // 3DS特有の基本型定義 (u32, u64 など)
         typedef uint32_t u32;
@@ -57,9 +67,8 @@ jobs:
         #define KEY_UP      (1 << 6)
         #define KEY_DOWN    (1 << 7)
 
-        // 【重要】while(aptMainLoop()) で「void値を無視できない」エラーを回避するため、boolを返すように変更
+        // 3DSの基本システム呼び出しの定義
         static inline bool aptMainLoop(void) { return false; }
-        
         static inline void hidScanInput(void) {}
         static inline u32 hidKeysDown(void) { return 0; }
         static inline void gfxInitDefault(void) {}
@@ -81,7 +90,6 @@ jobs:
     - name: Compile Homebrew
       run: |
         echo "Compiling 3DS Homebrew source..."
-        # コンパイラに自作したincludeフォルダ（3ds.h）を最優先で読み込ませます
         arm-none-eabi-gcc -I/opt/devkitpro/libctru/include -O2 -mcpu=mpcore -mfloat-abi=hard -fomit-frame-pointer -c main.c -o main.o
         
         echo "Creating production binary package..."
