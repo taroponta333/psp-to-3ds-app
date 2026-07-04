@@ -10,24 +10,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # devkitpro公式が現在推奨している、3DS用の環境が最初から「全部入り」のコンテナを指定
-    container:
-      image: devkitpro/devkitarm:latest
-
     steps:
-    # 1. あなたのコードを取得する
+    # 1. あなたのコード（main.c, Makefile）を取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 最初から3ds.hやlibctruが入っているので、ネットワークを介さずそのままコンパイル！
+    # 2. devkitPro公式の「ツール導入用お助けスクリプト」を直接引っ張ってくる
+    - name: Install devkitARM via official script
+      run: |
+        # 公式のリポジトリ設定スクリプトをダウンロードして実行
+        wget https://apt.devkitpro.org/install-devkitpro.sh
+        sudo chmod +x install-devkitpro.sh
+        sudo ./install-devkitpro.sh
+        
+        # 3DS開発に必要な最小限のパッケージだけを直接インストール（余計な通信をカット）
+        sudo apt-get update
+        sudo apt-get install -y devkitarm-rules 3ds-dev
+
+    # 3. パスを完璧に通してコンパイルを実行！
     - name: Compile Homebrew
       run: |
-        # コンテナ内の正しいパスを Makefile に教えてあげる
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         make
           
-    # 3. 出来上がった成果物を保存してダウンロード可能にする
+    # 4. 出来上がった成果物（.3dsx）を保存してダウンロード可能にする
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
