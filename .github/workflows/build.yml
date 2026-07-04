@@ -10,26 +10,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 【最終解答】3DS開発環境(devkitARM + 3ds-dev)が最初から100%全て入っている公式コンテナを直接指定
+    # 【超重要】コンパイラだけでなく、3ds.h や libctru が最初から「全部入り」の公式イメージを指定
     container:
-      image: devkitpro/devkitarm:latest
+      image: devkitpro/devkitpro:latest
 
     steps:
-    # 1. あなたのコード（main.c, Makefile）を取得
+    # 1. あなたのコードを取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 外部へのダウンロードは一切不要！目の前にあるツールで直接一発コンパイル！
+    # 2. 通信を一切行わず、コンテナ内のローカルファイルだけで一発コンパイル！
     - name: Compile Homebrew
       run: |
-        # コンテナ内の公式パスをガチッと繋ぐ
+        # 全部入りコンテナの内部パスを完璧に案内
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
-        export PATH=$DEVKITARM/bin:$PATH
+        export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
         
         make
           
-    # 3. 出来上がった成果物（.3dsx）を保存してダウンロード可能にする
+    # 3. 出来上がった成果物を保存
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
