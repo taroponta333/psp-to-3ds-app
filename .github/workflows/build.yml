@@ -10,17 +10,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 外部のアクションを探しに行かず、このジョブ自体を全部入りの環境で直接実行する
+    # 【ここを修正！】3DS開発用のライブラリ(libctru等)が最初から全部入っているコンテナを指定
     container:
-      image: devkitpro/devkitarm:latest
+      image: cyberic/devkitpro-3ds:latest
 
     steps:
     # 1. あなたのコードを取得する
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. サーバーから何もダウンロードせず、カバンの中にあるツールで直接コンパイル
-    # (コンテナを直接指定しているので、すでに3ds.hの場所も自動で繋がっています)
+    # 2. 最初から3ds.hが入っているので、そのまま一発コンパイル！
     - name: Compile Homebrew
       run: |
         make
