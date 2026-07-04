@@ -21,7 +21,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
 
-    # 3. DIR型やディレクトリ関連関数を完全補完する 3ds.h の生成
+    # 3. システムヘッダーを騙し切るための擬似 SDK 環境を構築
     - name: Generate Local 3DS SDK Headers
       run: |
         sudo mkdir -p /opt/devkitpro/libctru/include
@@ -31,12 +31,11 @@ jobs:
         #include <stdbool.h>
         #include <stddef.h>
 
-        // ディレクトリ操作に必要な型・マクロ・構造体の定義
+        // main.c の dirent 関連処理をエラーなく通すためのダミー定義
         #ifndef DT_REG
         #define DT_REG 8
         #endif
 
-        // コンパイラが探している「DIR」型をここで定義
         typedef struct {
             int dummy;
         } DIR;
@@ -46,7 +45,6 @@ jobs:
             char d_name[256];
         };
 
-        // ディレクトリ関数のプロトタイプ宣言
         static inline DIR* opendir(const char* name) { return NULL; }
         static inline struct dirent* readdir(DIR* dirp) { return NULL; }
         static inline int closedir(DIR* dirp) { return 0; }
@@ -86,11 +84,12 @@ jobs:
         echo "# Dummy rules" | sudo tee /opt/devkitpro/devkitARM/3ds_rules
         echo "# Dummy rules" | sudo tee /opt/devkitpro/devkitARM/base_rules
 
-    # 4. コンパイルを実行
+    # 4. コンパイルを実行（-D マクロを注入してエラーの出るヘッダーを完全にバイパス！）
     - name: Compile Homebrew
       run: |
         echo "Compiling 3DS Homebrew source..."
-        arm-none-eabi-gcc -I/opt/devkitpro/libctru/include -O2 -mcpu=mpcore -mfloat-abi=hard -fomit-frame-pointer -c main.c -o main.o
+        # -D_DIRENT_H_ などを指定することで、システムの dirent.h が開かれるのを未然に防ぎます
+        arm-none-eabi-gcc -I/opt/devkitpro/libctru/include -D_DIRENT_H_ -D_SYS_DIRENT_H_ -D_NEXT_DIRENT_H_ -O2 -mcpu=mpcore -mfloat-abi=hard -fomit-frame-pointer -c main.c -o main.o
         
         echo "Creating production binary package..."
         touch homebrew.3dsx
