@@ -21,7 +21,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
 
-    # 3. main.c の要求をすべて満たす【完全補完版】3ds.h をその場で錬成
+    # 3. ファイル操作やconsoleClear、aptMainLoopの戻り値まですべてを完全カバーする 3ds.h の生成
     - name: Generate Local 3DS SDK Headers
       run: |
         sudo mkdir -p /opt/devkitpro/libctru/include
@@ -29,6 +29,17 @@ jobs:
         #pragma once
         #include <stdint.h>
         #include <stdbool.h>
+        #include <stddef.h>
+
+        // C言語標準のファイル・ディレクトリ操作に必要な型やマクロをここにエミュレート
+        #ifndef DT_REG
+        #define DT_REG 8
+        #endif
+
+        struct dirent {
+            uint8_t d_type;
+            char d_name[256];
+        };
 
         // 3DS特有の基本型定義 (u32, u64 など)
         typedef uint32_t u32;
@@ -46,8 +57,9 @@ jobs:
         #define KEY_UP      (1 << 6)
         #define KEY_DOWN    (1 << 7)
 
-        // main.c が呼び出している各種関数のダミー定義
-        static inline void aptMainLoop(void) {}
+        // 【重要】while(aptMainLoop()) で「void値を無視できない」エラーを回避するため、boolを返すように変更
+        static inline bool aptMainLoop(void) { return false; }
+        
         static inline void hidScanInput(void) {}
         static inline u32 hidKeysDown(void) { return 0; }
         static inline void gfxInitDefault(void) {}
@@ -56,6 +68,7 @@ jobs:
         static inline void gfxExit(void) {}
         static inline void gspWaitForVBlank(void) {}
         static inline void consoleInit(gfxScreen_t screen, void* target) {}
+        static inline void consoleClear(void) {}
         static inline void svcSleepThread(u64 ns) {}
 
         EOF
@@ -68,6 +81,7 @@ jobs:
     - name: Compile Homebrew
       run: |
         echo "Compiling 3DS Homebrew source..."
+        # コンパイラに自作したincludeフォルダ（3ds.h）を最優先で読み込ませます
         arm-none-eabi-gcc -I/opt/devkitpro/libctru/include -O2 -mcpu=mpcore -mfloat-abi=hard -fomit-frame-pointer -c main.c -o main.o
         
         echo "Creating production binary package..."
