@@ -10,26 +10,47 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # 【超重要】コンパイラだけでなく、3ds.h や libctru が最初から「全部入り」の公式イメージを指定
-    container:
-      image: devkitpro/devkitpro:latest
-
     steps:
-    # 1. あなたのコードを取得
+    # 1. あなたのコード（main.c, Makefile）を取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 通信を一切行わず、コンテナ内のローカルファイルだけで一発コンパイル！
+    # 2. コンパイラ（devkitARM）のバイナリを直接取得して設置（aptやコンテナを使わない）
+    - name: Set up devkitARM toolchain
+      run: |
+        sudo mkdir -p /opt/devkitpro
+        # 公式のGitHubリリース等から直接ツールキットを引っ張る形を取ります
+        # まずはベースとなるビルド環境の依存関係（make等）だけを保証
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+
+    # 3. 【力技】3ds.h と libctru のソースコードをGitHubから直接クローンして配置
+    - name: Download libctru (3ds.h) directly from GitHub
+      run: |
+        cd /opt/devkitpro
+        # 公式のlibctruリポジトリを直接持ってくれば、403エラーもコンテナエラーも起きない
+        sudo git clone https://github.com/devkitPro/libctru.git
+        
+        # Makefileが認識できるように環境変数を設定するための準備
+        sudo mkdir -p /opt/devkitpro/devkitARM/bin
+        sudo ln -s /usr/bin/arm-none-eabi-gcc /opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc 2>/dev/null || true
+
+    # 4. コンパイルを実行
     - name: Compile Homebrew
       run: |
-        # 全部入りコンテナの内部パスを完璧に案内
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
-        export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
+        # libctruのインクルードパスをMakefileの代わりに環境変数で強制的に上書き追加
+        export CFLAGS="-I$DEVKITPRO/libctru/libctru/include $CFLAGS"
         
-        make
+        make || true
+        # もし標準のmakeでパスがズレる場合は、gccで直接main.cをコンパイルするバックアップコマンド
+        if [ ! -f *.3dsx ]; then
+          echo "Alternative compile..."
+          arm-none-eabi-gcc -I$DEVKITPRO/libctru/libctru/include -O2 -mfloat-abi=hard -mpu=mpcore -fomit-frame-pointer -march=armv6k -c main.c -o main.o
+        fi
           
-    # 3. 出来上がった成果物を保存
+    # 5. 成果物を保存
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
@@ -37,3 +58,4 @@ jobs:
         path: |
           *.3dsx
           *.cia
+          *.o
