@@ -15,11 +15,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. devkitProの公式リポジトリ（APT）をUbuntuに直接登録する
+    # 2. 【ここを修正！】gnupgをすべて小文字に直しました
     - name: Add devkitPro repository
       run: |
         sudo apt-get update
-        sudo apt-get install -y GnuPG wget
+        sudo apt-get install -y gnupg wget
         # devkitProの公開鍵を登録
         sudo wget -O /usr/share/keyrings/devkitpro-keyring.gpg https://pkg.devkitpro.org/devkitpro-keyring.gpg
         # リポジトリ一覧にdevkitProを追加
@@ -35,7 +35,6 @@ jobs:
     # 4. コンパイルを実行
     - name: Compile Homebrew
       run: |
-        # 環境変数のパスを一時的に通してmakeを実行
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         make
