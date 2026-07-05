@@ -26,10 +26,11 @@ jobs:
         # 2. 3DS開発セットをインストール
         /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
         
-        # 3. 本番コンパイル！
-        # CFLAGSにインクルードパスを強制注入して、3ds.hを絶対に見つけさせます
+        # 3. 本番コンパイル＆リンク！
+        # CFLAGS: ヘッダー（.h）の場所
+        # LDFLAGS: ライブラリ（.a）の場所 を強制注入！
         make clean
-        make CFLAGS="-I/opt/devkitpro/libctru/include"
+        make CFLAGS="-I/opt/devkitpro/libctru/include" LDFLAGS="-L/opt/devkitpro/libctru/lib"
 
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
