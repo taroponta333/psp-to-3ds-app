@@ -13,7 +13,6 @@ jobs:
     env:
       DEVKITPRO: /opt/devkitpro
       DEVKITARM: /opt/devkitpro/devkitARM
-      # 【修正】末尾に /opt/devkitpro/pacman/bin を追加して、pacmanの居場所を教えました！
       PATH: /opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/pacman/bin:/usr/local/bin:/usr/bin:/bin
 
     steps:
@@ -22,14 +21,13 @@ jobs:
 
     - name: Install 3DS Dev Kit
       run: |
-        # フルパスで確実に呼び出します
         /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
 
     - name: Compile
       run: |
         make clean
-        # ジョブ全体に DEVKITPRO がガッチリ効いているので、これでリンクエラーも消えるはずです
-        make CFLAGS="-I/opt/devkitpro/libctru/include" LDFLAGS="-L/opt/devkitpro/libctru/lib"
+        # 【修正】外からの強制上書きをやめ、Makefile本来の設定で安全にビルドします！
+        make
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
