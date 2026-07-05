@@ -18,17 +18,18 @@ jobs:
 
     - name: Compile Real Homebrew
       run: |
-        # パス設定（devkitProの推奨設定を網羅）
+        # 1. 環境変数の設定
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
         
-        # dkp-pacman の代わりに、公式のインストール用コマンドを直接叩く
+        # 2. 3DS開発セットをインストール
         /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
         
-        # ビルド実行
+        # 3. 本番コンパイル！
+        # CFLAGSにインクルードパスを強制注入して、3ds.hを絶対に見つけさせます
         make clean
-        make
+        make CFLAGS="-I/opt/devkitpro/libctru/include"
 
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
