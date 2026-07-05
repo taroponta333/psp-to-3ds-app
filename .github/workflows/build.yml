@@ -10,9 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
-    # 【ここを修正！】実在する正しいバージョン「r62」を指定して召喚します
+    # 【ここが唯一にして最大の修正！】
+    # ghcr.io（GitHubの倉庫）ではなく、Docker Hub（標準倉庫）から引っ張るのが正解でした！
     container:
-      image: ghcr.io/devkitpro/devkitarm:r62
+      image: devkitpro/devkitarm:latest
 
     steps:
     # 1. あなたのコードを取得
