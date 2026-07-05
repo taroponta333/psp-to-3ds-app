@@ -10,26 +10,25 @@ jobs:
     container:
       image: devkitpro/devkitarm:latest
     
-    # ここで環境変数を定義すれば、pacmanもmakeも確実にパスを認識します
     env:
       DEVKITPRO: /opt/devkitpro
       DEVKITARM: /opt/devkitpro/devkitARM
-      PATH: /opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/usr/local/bin:/usr/bin:/bin
+      # 【修正】末尾に /opt/devkitpro/pacman/bin を追加して、pacmanの居場所を教えました！
+      PATH: /opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/pacman/bin:/usr/local/bin:/usr/bin:/bin
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Install 3DS Dev Kit
-      # 403が出た場合は「サーバーの機嫌が悪い」です。
-      # この構成が最も成功率が高いです。
       run: |
-        pacman -Sy --noconfirm 3ds-dev
+        # フルパスで確実に呼び出します
+        /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
 
     - name: Compile
       run: |
         make clean
-        # Makefileが環境変数を読み込まない場合でも、以下で強制的にパスを渡します
+        # ジョブ全体に DEVKITPRO がガッチリ効いているので、これでリンクエラーも消えるはずです
         make CFLAGS="-I/opt/devkitpro/libctru/include" LDFLAGS="-L/opt/devkitpro/libctru/lib"
 
     - name: Upload binary
