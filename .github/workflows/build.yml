@@ -1,4 +1,4 @@
-name: 3DS Homebrew Real Build
+name: 3DS Homebrew Ultimate Real Build
 
 on:
   push:
@@ -9,37 +9,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # 【ここが最大の裏技】GitHub公式の倉庫から、3DS開発環境が最初から全部入った本物のコンテナを直接召喚
+    container:
+      image: ghcr.io/devkitpro/devkitarm:latest
 
     steps:
     # 1. あなたのコードを取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. devkitPro公式のツールチェーン（本物）を、403の起きない安全な公式ミラーから直接ダウンロード
-    # ※3DSのコンパイラ本体と、3dsxtool、libctru（本物の3ds.h）がすべて含まれています
-    - name: Install Genuine devkitARM & libctru
-      run: |
-        sudo mkdir -p /opt/devkitpro
-        cd /opt
-        
-        # ネットワークに絶対弾かれないGitHubのリリースページから、Linux用の本物のツール一式を取得
-        wget -q https://github.com/devkitPro/devkitARM/releases/download/v41/devkitARM_r41-linux.tar.xz
-        wget -q https://github.com/devkitPro/libctru/releases/download/v2.1.2/libctru-2.1.2.tar.bz2
-        wget -q https://github.com/devkitPro/3dstools/releases/download/v1.2.1/3dstools-v1.2.1-linux.tar.xz
-
-        # 本物のツール群を /opt/devkitpro の正しい配置で一気に解凍
-        sudo tar -xJf devkitARM_r41-linux.tar.xz -C /opt/devkitpro
-        
-        sudo mkdir -p /opt/devkitpro/libctru
-        sudo tar -xjf libctru-2.1.2.tar.bz2 -C /opt/devkitpro/libctru
-        
-        sudo mkdir -p /opt/devkitpro/tools/bin
-        sudo tar -xJf 3dstools-v1.2.1-linux.tar.xz -C /opt/devkitpro/tools/bin --strip-components=1 2>/dev/null || sudo tar -xJf 3dstools-v1.2.1-linux.tar.xz -C /opt/devkitpro/tools/bin
-
-    # 3. 本物のツールチェーンを使って、本物の Makefile で完全コンパイル！
+    # 2. 最初から入っている本物のコンパイラと3dsxtoolを使ってビルド！
     - name: Compile Real Homebrew
       run: |
-        # パスを完璧に本物のSDKへ繋ぐ
+        # コンテナ内に最初から完璧に整っている本物のパスを指定
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
@@ -48,7 +31,7 @@ jobs:
         make clean
         make
 
-    # 4. 今度こそ「0バイトじゃない本物の成果物」を保存！
+    # 3. 今度こそ、0バイトじゃない本物の3dsxファイルを保存！
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
