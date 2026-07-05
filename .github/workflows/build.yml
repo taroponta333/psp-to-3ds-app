@@ -9,8 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 【ここが最強の修正！】
+    # devkitarm（空の器）ではなく、3ds環境全部入りのイメージを直接指定！
     container:
-      image: devkitpro/devkitarm:latest
+      image: devkitpro/3ds:latest
 
     steps:
     - name: Checkout code
@@ -18,19 +20,15 @@ jobs:
 
     - name: Compile Real Homebrew
       run: |
-        # 1. 環境変数の設定
+        # パス設定（このイメージなら最初からここにあるはず！）
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
         
-        # 2. 3DS開発セットをインストール
-        /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
-        
-        # 3. 本番コンパイル＆リンク！
-        # CFLAGS: ヘッダー（.h）の場所
-        # LDFLAGS: ライブラリ（.a）の場所 を強制注入！
+        # もう pacman を叩かない！ダウンロードによる403エラーを回避！
+        # そのままメイクするだけ！
         make clean
-        make CFLAGS="-I/opt/devkitpro/libctru/include" LDFLAGS="-L/opt/devkitpro/libctru/lib"
+        make
 
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
