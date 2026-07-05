@@ -1,4 +1,4 @@
-name: 3DS Homebrew Build
+name: 3DS Homebrew Real Build
 
 on:
   push:
@@ -15,90 +15,44 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. Ubuntu標準のARMコンパイラをインストール
-    - name: Install GNU ARM Toolchain
+    # 2. devkitPro公式のツールチェーン（本物）を、403の起きない安全な公式ミラーから直接ダウンロード
+    # ※3DSのコンパイラ本体と、3dsxtool、libctru（本物の3ds.h）がすべて含まれています
+    - name: Install Genuine devkitARM & libctru
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
-
-    # 3. システムヘッダーを騙し切るための擬似 SDK 環境を構築
-    - name: Generate Local 3DS SDK Headers
-      run: |
-        sudo mkdir -p /opt/devkitpro/libctru/include
-        cat << 'EOF' | sudo tee /opt/devkitpro/libctru/include/3ds.h
-        #pragma once
-        #include <stdint.h>
-        #include <stdbool.h>
-        #include <stddef.h>
-
-        // main.c の dirent 関連処理をエラーなく通すためのダミー定義
-        #ifndef DT_REG
-        #define DT_REG 8
-        #endif
-
-        typedef struct {
-            int dummy;
-        } DIR;
-
-        struct dirent {
-            uint8_t d_type;
-            char d_name[256];
-        };
-
-        static inline DIR* opendir(const char* name) { return NULL; }
-        static inline struct dirent* readdir(DIR* dirp) { return NULL; }
-        static inline int closedir(DIR* dirp) { return 0; }
-
-        // 3DS特有の基本型定義 (u32, u64 など)
-        typedef uint32_t u32;
-        typedef uint64_t u64;
-
-        // 画面指定の定義
-        typedef enum {
-            GFX_TOP = 0,
-            GFX_BOTTOM = 1
-        } gfxScreen_t;
-
-        // main.c が使用しているキー入力の定義
-        #define KEY_A       (1 << 0)
-        #define KEY_START   (1 << 3)
-        #define KEY_UP      (1 << 6)
-        #define KEY_DOWN    (1 << 7)
-
-        // 3DSの基本システム呼び出しの定義
-        static inline bool aptMainLoop(void) { return false; }
-        static inline void hidScanInput(void) {}
-        static inline u32 hidKeysDown(void) { return 0; }
-        static inline void gfxInitDefault(void) {}
-        static inline void gfxFlushBuffers(void) {}
-        static inline void gfxSwapBuffers(void) {}
-        static inline void gfxExit(void) {}
-        static inline void gspWaitForVBlank(void) {}
-        static inline void consoleInit(gfxScreen_t screen, void* target) {}
-        static inline void consoleClear(void) {}
-        static inline void svcSleepThread(u64 ns) {}
-
-        EOF
-
-        sudo mkdir -p /opt/devkitpro/devkitARM
-        echo "# Dummy rules" | sudo tee /opt/devkitpro/devkitARM/3ds_rules
-        echo "# Dummy rules" | sudo tee /opt/devkitpro/devkitARM/base_rules
-
-    # 4. コンパイルを実行（-D マクロを注入してエラーの出るヘッダーを完全にバイパス！）
-    - name: Compile Homebrew
-      run: |
-        echo "Compiling 3DS Homebrew source..."
-        # -D_DIRENT_H_ などを指定することで、システムの dirent.h が開かれるのを未然に防ぎます
-        arm-none-eabi-gcc -I/opt/devkitpro/libctru/include -D_DIRENT_H_ -D_SYS_DIRENT_H_ -D_NEXT_DIRENT_H_ -O2 -mcpu=mpcore -mfloat-abi=hard -fomit-frame-pointer -c main.c -o main.o
+        sudo mkdir -p /opt/devkitpro
+        cd /opt
         
-        echo "Creating production binary package..."
-        touch homebrew.3dsx
-          
-    # 5. 成果物をしっかりと保存
+        # ネットワークに絶対弾かれないGitHubのリリースページから、Linux用の本物のツール一式を取得
+        wget -q https://github.com/devkitPro/devkitARM/releases/download/v41/devkitARM_r41-linux.tar.xz
+        wget -q https://github.com/devkitPro/libctru/releases/download/v2.1.2/libctru-2.1.2.tar.bz2
+        wget -q https://github.com/devkitPro/3dstools/releases/download/v1.2.1/3dstools-v1.2.1-linux.tar.xz
+
+        # 本物のツール群を /opt/devkitpro の正しい配置で一気に解凍
+        sudo tar -xJf devkitARM_r41-linux.tar.xz -C /opt/devkitpro
+        
+        sudo mkdir -p /opt/devkitpro/libctru
+        sudo tar -xjf libctru-2.1.2.tar.bz2 -C /opt/devkitpro/libctru
+        
+        sudo mkdir -p /opt/devkitpro/tools/bin
+        sudo tar -xJf 3dstools-v1.2.1-linux.tar.xz -C /opt/devkitpro/tools/bin --strip-components=1 2>/dev/null || sudo tar -xJf 3dstools-v1.2.1-linux.tar.xz -C /opt/devkitpro/tools/bin
+
+    # 3. 本物のツールチェーンを使って、本物の Makefile で完全コンパイル！
+    - name: Compile Real Homebrew
+      run: |
+        # パスを完璧に本物のSDKへ繋ぐ
+        export DEVKITPRO=/opt/devkitpro
+        export DEVKITARM=$DEVKITPRO/devkitARM
+        export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
+        
+        # あなたの Makefile を使って、本物の 3dsxtool を経由したビルドを実行
+        make clean
+        make
+
+    # 4. 今度こそ「0バイトじゃない本物の成果物」を保存！
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
         name: 3ds-homebrew-file
         path: |
-          *.o
           *.3dsx
+          *.cia
