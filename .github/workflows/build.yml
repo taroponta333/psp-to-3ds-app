@@ -10,8 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
-    # 【ここが唯一にして最大の修正！】
-    # ghcr.io（GitHubの倉庫）ではなく、Docker Hub（標準倉庫）から引っ張るのが正解でした！
+    # 本物のコンテナの召喚は大成功！
     container:
       image: devkitpro/devkitarm:latest
 
@@ -20,10 +19,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 最初から入っている本物のコンパイラと3dsxtoolを使ってビルド！
+    # 2. 3DS専用のライブラリをインストールしてからコンパイル！
     - name: Compile Real Homebrew
       run: |
-        # コンテナ内に最初から完璧に整っている本物のパスを指定
+        # コンテナ内の専用アプリストアから、3DS開発キット(3ds.hなど)を自動インストール！
+        dkp-pacman -Sy --noconfirm 3ds-dev
+
+        # パスを設定
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
