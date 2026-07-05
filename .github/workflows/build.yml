@@ -9,32 +9,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # 本物のコンテナの召喚は大成功！
     container:
       image: devkitpro/devkitarm:latest
 
     steps:
-    # 1. あなたのコードを取得
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. 3DS専用のライブラリをインストールしてからコンパイル！
     - name: Compile Real Homebrew
       run: |
-        # コンテナ内の専用アプリストアから、3DS開発キット(3ds.hなど)を自動インストール！
-        dkp-pacman -Sy --noconfirm 3ds-dev
-
-        # パスを設定
+        # パス設定（devkitProの推奨設定を網羅）
         export DEVKITPRO=/opt/devkitpro
         export DEVKITARM=$DEVKITPRO/devkitARM
         export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
         
-        # あなたの Makefile を使って、本物の 3dsxtool を経由したビルドを実行
+        # dkp-pacman の代わりに、公式のインストール用コマンドを直接叩く
+        /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
+        
+        # ビルド実行
         make clean
         make
 
-    # 3. 今度こそ、0バイトじゃない本物の3dsxファイルを保存！
     - name: Upload compiled binary
       uses: actions/upload-artifact@v4
       with:
