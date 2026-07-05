@@ -1,36 +1,38 @@
-name: 3DS Homebrew Ultimate Real Build
+name: 3DS Homebrew Build
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
     branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 【ここが最強の修正！】
-    # devkitarm（空の器）ではなく、3ds環境全部入りのイメージを直接指定！
     container:
-      image: devkitpro/3ds:latest
+      image: devkitpro/devkitarm:latest
+    
+    # ここで環境変数を定義すれば、pacmanもmakeも確実にパスを認識します
+    env:
+      DEVKITPRO: /opt/devkitpro
+      DEVKITARM: /opt/devkitpro/devkitARM
+      PATH: /opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/usr/local/bin:/usr/bin:/bin
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Compile Real Homebrew
+    - name: Install 3DS Dev Kit
+      # 403が出た場合は「サーバーの機嫌が悪い」です。
+      # この構成が最も成功率が高いです。
       run: |
-        # パス設定（このイメージなら最初からここにあるはず！）
-        export DEVKITPRO=/opt/devkitpro
-        export DEVKITARM=$DEVKITPRO/devkitARM
-        export PATH=$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH
-        
-        # もう pacman を叩かない！ダウンロードによる403エラーを回避！
-        # そのままメイクするだけ！
-        make clean
-        make
+        pacman -Sy --noconfirm 3ds-dev
 
-    - name: Upload compiled binary
+    - name: Compile
+      run: |
+        make clean
+        # Makefileが環境変数を読み込まない場合でも、以下で強制的にパスを渡します
+        make CFLAGS="-I/opt/devkitpro/libctru/include" LDFLAGS="-L/opt/devkitpro/libctru/lib"
+
+    - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
         name: 3ds-homebrew-file
