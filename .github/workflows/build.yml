@@ -14,9 +14,6 @@ jobs:
       DEVKITPRO: /opt/devkitpro
       DEVKITARM: /opt/devkitpro/devkitARM
       PATH: /opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/pacman/bin:/usr/local/bin:/usr/bin:/bin
-      # 【超強力な追加】Makefileの設定を上書きせず、コンパイラレベルで強制的にパスを通します！
-      CPATH: /opt/devkitpro/libctru/include
-      LIBRARY_PATH: /opt/devkitpro/libctru/lib
 
     steps:
     - name: Checkout code
@@ -26,11 +23,16 @@ jobs:
       run: |
         /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
 
-    - name: Compile
+    - name: Compile and Link Manually
       run: |
-        make clean
-        # 外からの引数上書きをしないので、3DS用の正しいCPU設定（アーキテクチャ）が活きます！
-        make
+        # 1. main.c を 3DSのCPU（ARMv6k）用として正しくコンパイル
+        arm-none-eabi-gcc -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -O2 -I/opt/devkitpro/libctru/include -D__3DS__ -c main.c -o main.o
+        
+        # 2. 3DSの標準ライブラリ（libctru）をガッチリ結合して中密度のバイナリ（elf）を作成
+        arm-none-eabi-gcc -specs=3dsx.specs -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft main.o -L/opt/devkitpro/libctru/lib -lctru -lm -o 3ds_to_psp_sender.elf
+        
+        # 3. 最終的な3DSのホームブリュー形式（.3dsx）に変換！
+        3dsxtool 3ds_to_psp_sender.elf 3ds_to_psp_sender.3dsx
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
@@ -38,4 +40,3 @@ jobs:
         name: 3ds-homebrew-file
         path: |
           *.3dsx
-          *.cia
