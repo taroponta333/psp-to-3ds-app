@@ -14,6 +14,9 @@ jobs:
       DEVKITPRO: /opt/devkitpro
       DEVKITARM: /opt/devkitpro/devkitARM
       PATH: /opt/devkitpro/devkitARM/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/pacman/bin:/usr/local/bin:/usr/bin:/bin
+      # 【超強力な追加】Makefileの設定を上書きせず、コンパイラレベルで強制的にパスを通します！
+      CPATH: /opt/devkitpro/libctru/include
+      LIBRARY_PATH: /opt/devkitpro/libctru/lib
 
     steps:
     - name: Checkout code
@@ -26,7 +29,7 @@ jobs:
     - name: Compile
       run: |
         make clean
-        # 【修正】外からの強制上書きをやめ、Makefile本来の設定で安全にビルドします！
+        # 外からの引数上書きをしないので、3DS用の正しいCPU設定（アーキテクチャ）が活きます！
         make
 
     - name: Upload binary
