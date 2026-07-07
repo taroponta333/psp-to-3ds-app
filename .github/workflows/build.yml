@@ -7,8 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 💡 403回避ポイント：最初から3DS環境が組み込まれたイメージに変更！
     container:
-      image: devkitpro/devkitarm:latest
+      image: devkitpro/devkitarm:3ds-dev
     
     env:
       DEVKITPRO: /opt/devkitpro
@@ -19,16 +20,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install 3DS Dev Kit
-      run: |
-        /opt/devkitpro/pacman/bin/pacman -Sy --noconfirm 3ds-dev
+    # 💡 403回避ポイント：最初から全部入っているので、ネットワーク通信するpacmanの手順を丸ごと削除！
 
     - name: Compile and Link Manually
       run: |
         # 1. main.c を 3DSのCPU（ARMv6k）用として正しくコンパイル
         arm-none-eabi-gcc -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -O2 -I/opt/devkitpro/libctru/include -D__3DS__ -c main.c -o main.o
         
-        # 2. 3DSの標準ライブラリ（libctru）をガッチリ結合して中密度のバイナリ（elf）を作成
+        # 2. 3DSの標準ライブラリ（libctru）を結合して中密度のバイナリ（elf）を作成
         arm-none-eabi-gcc -specs=3dsx.specs -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft main.o -L/opt/devkitpro/libctru/lib -lctru -lm -o 3ds_to_psp_sender.elf
         
         # 3. 最終的な3DSのホームブリュー形式（.3dsx）に変換！
