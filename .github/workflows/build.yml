@@ -7,9 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 💡 403回避ポイント：最初から3DS環境が組み込まれたイメージに変更！
     container:
-      image: devkitpro/devkitarm:3ds-dev
+      image: devkitpro/devkitarm:latest # 💡 正しい公式イメージ名に戻します
     
     env:
       DEVKITPRO: /opt/devkitpro
@@ -20,7 +19,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 💡 403回避ポイント：最初から全部入っているので、ネットワーク通信するpacmanの手順を丸ごと削除！
+    # 💡 解決ポイント：エラーの元だった「Install 3DS Dev Kit (pacman)」のステップを完全に消去しました。
+    # コンテナ内に最初から入っているツールをそのまま使います。
 
     - name: Compile and Link Manually
       run: |
