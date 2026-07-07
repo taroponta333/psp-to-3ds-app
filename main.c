@@ -33,7 +33,6 @@ void scanDirectory() {
 
     while ((ent = readdir(dir)) != NULL && fileCount < MAX_FILES) {
         if (ent->d_type == DT_REG) {
-            // PSP用のファイルだけを抽出
             if (strstr(ent->d_name, ".pbp") || strstr(ent->d_name, ".prx")) {
                 strncpy(fileList[fileCount], ent->d_name, 256);
                 fileCount++;
@@ -64,18 +63,31 @@ void drawMenu() {
     }
 }
 
-// ✨ IP入力不要！一斉バラマキ（ブロードキャスト）送信関数
+// 進捗表示用の行クリア＆再描画関数
+void printStatusLine(int x, int y, const char* msg) {
+    printf("\x1b[%d;%dH                                                                ", y + 1, x + 1); // 行消去
+    printf("\x1b[%d;%dH%s", y + 1, x + 1, msg);
+}
+
+// IP入力不要！一斉バラマキ（ブロードキャスト）送信関数
 void sendFileToPSP(const char* fileName) {
     char fullPath[512];
     snprintf(fullPath, sizeof(fullPath), "sdmc:/3ds/%s", fileName);
     
-    printf("\nOpening: %s\n", fileName);
+    consoleClear();
+    printf("=== Transmission Mode ===\n\n");
+    printf("Opening file: %s\n", fileName);
     
     FILE *file = fopen(fullPath, "rb");
     if (file == NULL) {
         printf("Error: Could not open file.\n");
         return;
     }
+
+    // 💡 ファイルの総サイズを取得
+    fseek(file, 0, SEEK_END);
+    unsigned int total_file_size = (unsigned int)ftell(file);
+    fseek(file, 0, SEEK_SET);
 
     // UDPソケットの作成
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -85,7 +97,7 @@ void sendFileToPSP(const char* fileName) {
         return;
     }
 
-    // ルーター内に一斉送信（ブロードキャスト）する許可を出す設定
+    // ブロードキャスト許可
     int broadcastPermission = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (void *)&broadcastPermission, sizeof(broadcastPermission)) < 0) {
         printf("Error: Broadcasting permission failed.\n");
@@ -94,49 +106,86 @@ void sendFileToPSP(const char* fileName) {
         return;
     }
 
-    // 宛先IPを「255.255.255.255（全員宛て）」に固定！IP入力は不要！
+    // 宛先IP（全員宛て）固定
     struct sockaddr_in psp_broadcast_addr;
     memset(&psp_broadcast_addr, 0, sizeof(psp_broadcast_addr));
     psp_broadcast_addr.sin_family = AF_INET;
-    psp_broadcast_addr.sin_port = htons(8080); // PSP側が待ち受けるポート
+    psp_broadcast_addr.sin_port = htons(8080);
     psp_broadcast_addr.sin_addr.s_addr = inet_addr("255.255.255.255");
 
-    printf("Broadcasting file via Wi-Fi LAN...\n");
+    printf("Connecting to network...\n");
 
     char buffer[PSP_PACKET_SIZE];
     size_t bytesRead;
-    int packetCount = 0;
+    unsigned int sent_bytes_sum = 0;
+    int is_first_packet = 1;
 
-    // ファイルを読み込みながら電波に放り投げるループ
-    while ((bytesRead = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        ssize_t sentBytes = sendto(sock, buffer, bytesRead, 0, 
+    // 表示行の固定
+    const int STATUS_Y = 5;
+    const int PROGRESS_Y = 7;
+
+    printStatusLine(0, STATUS_Y, "[STATUS] Broadcasting file via Wi-Fi LAN...");
+
+    // ファイルを読み込みながら送信するループ
+    while (1) {
+        int packet_data_size = PSP_PACKET_SIZE;
+        char *send_ptr = buffer;
+
+        // 💡 【重要】最初のパケットの先頭4バイトに総ファイルサイズを埋め込む
+        if (is_first_packet) {
+            memcpy(buffer, &total_file_size, sizeof(unsigned int));
+            send_ptr += sizeof(unsigned int);
+            packet_data_size -= sizeof(unsigned int); // データ領域を4バイト削る
+        }
+
+        bytesRead = fread(send_ptr, 1, packet_data_size, file);
+        
+        // 読み込むデータがなくなったら終了
+        if (bytesRead <= 0 && !is_first_packet) {
+            break; 
+        }
+
+        // 実際に送信するパケットのサイズを計算
+        size_t send_size = bytesRead;
+        if (is_first_packet) {
+            send_size += sizeof(unsigned int); // 最初のパケットだけサイズ情報を足す
+            is_first_packet = 0;
+        }
+
+        ssize_t sentBytes = sendto(sock, buffer, send_size, 0, 
                                    (struct sockaddr*)&psp_broadcast_addr, 
                                    sizeof(psp_broadcast_addr));
         
         if (sentBytes < 0) {
-            printf("Error during transfer!\n");
+            printStatusLine(0, STATUS_Y, "[ERR] Error occurred during transfer!");
             break;
         }
 
-        packetCount++;
-        if (packetCount % 50 == 0) printf("."); // 進捗をドットで表示
+        // 送信した「純粋なファイルデータ」のバイト数を加算
+        sent_bytes_sum += bytesRead;
+
+        // 📊 リアルタイム進捗表示（画面のチラつきなし）
+        char progress_msg[128];
+        int percent = (int)(((long long)sent_bytes_sum * 100) / total_file_size);
+        if (percent > 100) percent = 100;
+
+        snprintf(progress_msg, sizeof(progress_msg), "Progress: %d%% (%u / %u bytes)", percent, sent_bytes_sum, total_file_size);
+        printStatusLine(0, PROGRESS_Y, progress_msg);
         
-        // PSPの処理落ち（パケットロス）を防ぐために5ミリ秒だけ休憩
+        // PSPのパケットロス（処理落ち）防止用待ち時間（5ミリ秒）
         svcSleepThread(5000000ULL); 
     }
     
-    printf("\nTotal Packets Sent: %d\n", packetCount);
-
     close(sock);
     fclose(file);
-    printf("Transfer Complete successfully!\n");
+
+    printStatusLine(0, STATUS_Y, "[STATUS] Transfer Complete successfully!");
 }
 
 int main(int argc, char **argv) {
     gfxInitDefault();
     consoleInit(GFX_TOP, NULL);
 
-    // 3DSのネットワーク機能（SOC）の初期化
     soc_buffer = (u32*)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
     if (soc_buffer != NULL) {
         socInit(soc_buffer, SOC_BUFFERSIZE);
@@ -144,10 +193,9 @@ int main(int argc, char **argv) {
         printf("SOC Buffer allocation failed!\n");
     }
 
-    scanDirectory() ;
+    scanDirectory();
     drawMenu();
 
-    // メインループ
     while (aptMainLoop()) {
         hidScanInput();
         u32 kDown = hidKeysDown();
@@ -168,7 +216,7 @@ int main(int argc, char **argv) {
         
         if (kDown & KEY_A && fileCount > 0) {
             sendFileToPSP(fileList[selectedIndex]);
-            svcSleepThread(3000000000ULL); // 完了画面を3秒見せる
+            svcSleepThread(3000000000ULL); // 完了画面を3秒保持
             drawMenu();
         }
 
@@ -179,7 +227,6 @@ int main(int argc, char **argv) {
         gspWaitForVBlank();
     }
 
-    // アプリ終了時のネットワーク後片付け
     socExit();
     if (soc_buffer) free(soc_buffer);
 
